@@ -1,14 +1,477 @@
-\documentclass{article}
-\usepackage{graphicx} % Required for inserting images
+% Group 20 - COMP90089 project report (JAMIA template, compile with XeLaTeX)
+\documentclass[twocolumn, 8pt]{article}
 
-\title{MLAH}
-\author{Anthony D}
-\date{October 2026}
+\usepackage{JAMIA}
+\usepackage{tabularx}
+\usepackage[hidelinks]{hyperref}
+
+\newcommand{\todo}[1]{\textcolor{red}{\textbf{[TODO: #1]}}}
+
+\title{Predicting Recurrent Hypoglycemia in ICU Patients}
+\author{Group 20: Shiwei Dai, Yushu Hou, Zhongyang Shao, Baiyu Yan, Shuyuan Zhang}
+\affil{School of Computing and Information Systems, The University of Melbourne, Australia}
+\date{}
 
 \begin{document}
 
-\maketitle
+% make title and abstract
+%==============================
+\par\noindent\rule[-7pt]{15.5cm}{0.2em}
+\begin{strip}
+    \begin{minipage}{.88\textwidth}
+        \maketitle
+        \small
+        \todo{add student ID numbers to the title page}
 
+        \abstractSection
+        {\todo{Objective}} % Objective
+        {\todo{Materials and Methods}} % Materials and Methods
+        {\todo{Results}} % Results
+        {\todo{Discussion}} % Discussion
+        {\todo{Conclusion}} % Conclusion
+        {hypoglycemia, intensive care units, MIMIC-IV, machine learning, digital phenotyping} % Key words
+
+        \par\noindent\rule[-7pt]{15.5cm}{0.2em}
+        \hspace{2cm}
+    \end{minipage}
+\end{strip}
+%==============================
+
+
+% Introduction
+%==============================
 \section{Introduction}
+\label{sec:intro}
+
+Hypoglycemia, defined as blood glucose below 70 mg/dL, is a major concern in intensive care units (ICUs).\cite{ada2026hospital} Yeh et al.\cite{yeh2025hypoglycemia} reported that 12.7\% of ICU patients experienced hypoglycemia, which was associated with increased mortality. Similarly, Krinsley et al.\cite{krinsley2011mild} and Kalfon et al.\cite{kalfon2015severe} linked hypoglycemic episodes to higher mortality risk.
+
+Despite initial recovery, patients may experience recurrent hypoglycemia, highlighting the need to identify those at continued risk.\cite{dnetto2016predictors}
+
+This study uses MIMIC-IV to predict recurrent hypoglycemia within 24 hours of recovery. We compare baseline clinical features (Feature Set A) with additional glucose measurements and temporal features (Feature Set B), evaluating Logistic Regression, Random Forest, and XGBoost to determine their predictive value.
+%==============================
+
+
+% Materials and Methods
+%==============================
+\section{Materials and Methods}
+\label{sec:methods}
+
+\subsection{Data Source and Study Population}
+\label{sec:data}
+
+This retrospective study used MIMIC-IV version 3.1, containing de-identified electronic health records from Beth Israel Deaconess Medical Center.\cite{johnson2023mimiciv,johnson2024mimiciv31}
+
+Adult patients ($\geq$18 years) were identified using anchor age and year. ICU stay information was obtained from \textit{icustays} and demographics from \textit{patients}. Stays with missing or invalid timestamps were excluded.
+
+Glucose measurements were extracted from \textit{chartevents} (220621, 226537) and \textit{labevents} (50809, 50931). Only numeric values recorded during ICU stays, in mg/dL and within 0--1,000 mg/dL (excluding 0), were retained.
+
+Measurements were merged chronologically and deduplicated by ICU stay and timestamp, prioritising laboratory values. When duplicates remained within the preferred source, the minimum value was retained. Measurements at different timestamps were preserved.
+
+Each ICU stay contributed at most one prediction instance, while patients could contribute multiple stays.
+
+\subsection{Digital Phenotyping and Cohort Construction}
+\label{sec:phenotype}
+
+A rule-based digital phenotype was used to identify hypoglycemia, recovery, and recurrence within 24 hours. The index event was the first glucose measurement below 70 mg/dL, while recovery was the first subsequent measurement $\geq$70 mg/dL, marking the prediction time point.
+
+Recurrence (label = 1) was defined as glucose below 70 mg/dL within 24 hours after recovery. Non-recurrence (label = 0) required no observed recurrence, a full 24-hour ICU stay after recovery, and at least three post-recovery glucose measurements. Stays not meeting these criteria were excluded unless recurrence was observed.
+
+Of 94,444 eligible adult ICU stays, 6,680 experienced hypoglycemia and 5,402 subsequently recovered. After excluding 1,326 stays with insufficient follow-up and 2,170 with insufficient glucose measurements, the final cohort included 1,906 stays from 1,823 patients, with 627 (32.9\%) positive and 1,279 (67.1\%) negative cases.
+
+Quality checks confirmed unique stay identifiers, valid event chronology, and label consistency. However, differing follow-up requirements may introduce monitoring-related selection bias.
+
+\subsection{Feature Engineering}
+\label{sec:features}
+
+All predictors used only information recorded at or before the recovery time, and each time window was anchored on either the index event or recovery (Table~\ref{tab:features}). Glucose values after recovery were used only to assign the label. Glucose features followed the same extraction and deduplication rules as the phenotype, so features and labels came from the same measurements.
+
+We built 76 candidate features in eight domains (Table~\ref{tab:features}), using derived concepts from the MIMIC Code Repository where available.\cite{johnson2018code} SOFA came from the last hourly score ending before recovery, and Sepsis-3\cite{singer2016sepsis3} was counted only when the SOFA rise, the antibiotic and the culture all preceded recovery. Insulin units counted only the dose given in the 24 hours before the index event, with infusions prorated. A medication or nutrition variable was set to 0 when no record existed, so a zero means nothing was documented. The seven comorbidity variables are the exception: they come from ICD codes assigned at discharge, so we treated them as a retrospective approximation and repeated the full analysis without them (Table~\ref{tab:s4}).
+
+Feature Set A (56 features) contained the baseline clinical information, including the index glucose value. Feature Set B (76 features) added 20 features on the glucose trajectory before recovery: its level, variability and trend, and how often glucose was measured. We recorded the proportion of missing values for each feature, overall and by outcome, and tested its association with recurrence using chi-square tests. No feature passed the prespecified 50\% exclusion threshold (Figure~\ref{fig:s2}). Imputation, scaling and encoding were fitted on training data only (Section~\ref{sec:preprocessing}).
+
+\begin{table*}[!t]
+\setlength{\abovecaptionskip}{5pt}
+\caption{Candidate features by domain. Every feature uses only information recorded at or before recovery (the prediction time), with time windows anchored on the index event or on recovery. Comorbidities are coded at discharge and are a retrospective approximation (Section~\ref{sec:features}).}
+\label{tab:features}
+\centering
+\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3.3cm} c >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{3.1cm} c}
+    \toprule
+    \textbf{Domain} & \textbf{n} & \textbf{Examples} & \textbf{Time window} & \textbf{Feature set} \\
+    \midrule
+    Index event & 3 & Index glucose; hours from ICU admission to index; recovery overnight & Index / recovery & A and B \\
+    Demographics and admission & 6 & Age, sex, race, admission type, first ICU type, weight & Static or latest value & A and B \\
+    Comorbidities & 7 & Diabetes, liver disease, renal disease, heart failure, malignancy, Charlson index & Admission (coded at discharge) & A and B \\
+    Laboratory values & 15 & Creatinine, BUN, electrolytes, albumin, bilirubin, ALT, AST, INR, lactate, blood counts & Last value within 48 h & A and B \\
+    Vital signs & 7 & Heart rate, mean arterial pressure, respiratory rate, temperature, SpO$_2$ & Mean or minimum within 6 h & A and B \\
+    Severity and organ support & 7 & SOFA (total, renal, liver), invasive ventilation, vasoactive agents, renal replacement therapy, Sepsis-3 & Within 24 h & A and B \\
+    Glycemic treatment and nutrition & 11 & IV and subcutaneous insulin, long-acting insulin, D50 boluses, dextrose infusion, enteral and parenteral nutrition, sulfonylureas, corticosteroids & Within 24--48 h, or running at recovery & A and B \\
+    \textbf{Glucose trajectory before recovery} & \textbf{20} & \textbf{Level:} nadir, recovery value, means and maxima; \textbf{variability:} SD, CV; \textbf{trend:} 24-hour slope before index, rate of fall, rebound; \textbf{timing:} episode duration, measurements per day & ICU admission to recovery & \textbf{B only} \\
+    \midrule
+    \textbf{Total} & \textbf{76} & & & A = 56, B = 76 \\
+    \bottomrule
+    \multicolumn{5}{p{0.97\textwidth}}{\footnotesize BUN, blood urea nitrogen; CV, coefficient of variation; SOFA, Sequential Organ Failure Assessment. A nadir below 54 mg/dL was flagged as level 2 hypoglycemia.\cite{ihsg2017glucose} Definitions, time windows and missingness for every feature are listed in the project's feature dictionary.}
+\end{tabularx}
+\end{table*}
+
+\subsection{Preprocessing}
+\label{sec:preprocessing}
+
+All models used the same patient-level split (20\% of patients held out for testing) and five patient-grouped cross-validation folds within the training set. Hyperparameters were selected by mean validation average precision, and nested out-of-fold (OOF) predictions (five outer, three inner folds) were used for threshold selection.
+
+For continuous variables, we used the median of the training fold to fill in the missing values and also added a flag to record whether the value was missing. For binary variables, the missing values are filled with the most frequent training value, and still use 0/1 encoding. For categorical values, we marked the missing values as ``Missing'' and then performed one-hot encoding.
+
+For Logistic Regression (LR), we performed an inverse hyperbolic sine (arcsinh) transformation on skewed continuous variables and standardized the continuous variables. While for Random Forest (RF), continuous variables were median-imputed without any additional transformation or standardization. All the imputation values, standardization parameters, and encoded categories are determined based on their respective training folds and then applied to the corresponding validation folds to avoid data leakage.
+
+For XGBoost, continuous and binary features were used without imputation, transformation or standardization. Trees split on cut-off values, so scaling is unnecessary, and XGBoost learns during training which branch a missing value should follow. The absence of a test could therefore carry information, which was relevant because lactate and several other measurements were missing more often in recurrent stays (Section~\ref{sec:cohort}). Categorical variables were one-hot encoded with a separate ``Missing'' category, as for LR and RF.
+
+\subsection{Models}
+\label{sec:models}
+
+\subsubsection{Logistic Regression and Random Forest}
+
+We established prediction models using LR and RF, and trained each model using both feature sets A and B, resulting in four models: LR-A, LR-B, RF-A, and RF-B.
+
+LR is an interpretable baseline model. The model coefficients indicate how the transformed features are associated with the log odds of recurrence, holding the other features constant. Due to the imbalance in the number of recurrent and non-recurrent samples, we set \texttt{class\_weight="balanced"} and used regularization to control the complexity of the model. We compared the two regularization methods, L1 and L2, and tested four C values, namely 0.01, 0.1, 1, and 10. Among them, the smaller the C value, the stronger the regularization.
+
+RF can capture the non-linear relationships and interactions between features that LR finds difficult to handle by combining the prediction results of multiple decision trees.\cite{breiman2001random} We fixed the number of decision trees at 200, and the number of features considered for each split was set to the square root of the number of features after preprocessing. Additionally, we compared different maximum depths (6 or unrestricted), the minimum number of samples per leaf node (5 or 15), and class weights (none or balanced). Among them, the maximum depth and the minimum number of samples per leaf node are mainly used to control the complexity of a single decision tree.
+
+\subsubsection{XGBoost}
+
+XGBoost builds shallow decision trees in sequence, each correcting the errors of the previous ones,\cite{chen2016xgboost} whereas RF builds its trees independently and averages them. It served as the flexible ``black-box'' comparator to LR and often performs well on tabular clinical data.\cite{grinsztajn2022tree} We trained it on both feature sets, giving XGB-A and XGB-B. Each tree used a random 80\% of stays and features. We compared tree depths (3 or 5), learning rates (0.03 or 0.1), numbers of trees (200 or 500), minimum child weights (1 or 5) and class weights (none, or 2.08, the training ratio of non-recurrent to recurrent stays). As in RF, depth and minimum child weight control the complexity of each tree, while the learning rate controls how much each new tree corrects the previous ones.
+
+To describe what XGBoost relied on, we used SHAP values,\cite{lundberg2017unified,lundberg2020local} which show how much each feature pushed a prediction towards or away from recurrence. Overall importance was the mean absolute SHAP value, and dependence plots showed how each effect changed across feature values. These analyses describe model behavior, not causal effects, and were not used for feature selection or retuning.
+
+\subsection{Hyperparameter Tuning and Validation}
+\label{sec:tuning}
+
+For the six models LR-A, LR-B, RF-A, RF-B, XGB-A, and XGB-B, we conducted grid search using the same training folds. To obtain out-of-fold (OOF) predictions, we held out one validation fold in each outer iteration and only used the remaining patients' data for inner cross-validation and parameter selection.\cite{cawley2010overfitting} After selecting the hyperparameters, we refitted the model on the outer training set and made predictions on the held-out validation fold. Therefore, the OOF prediction probability for each sample is derived from a model that did not use any data from that patient's records during training or hyperparameter selection.
+
+After obtaining all the OOF predictions, we used the full training set to re-select the hyperparameters through the fixed five-fold cross-validation, and then re-train each final model on the full training set. The independent test set was not used for model training or hyperparameter selection. We then used the six final models to generate recurrence probabilities for the test set. For XGBoost, early stopping was not used, so validation data never influenced model fitting. Search grids and selected values for XGBoost are listed in Table~\ref{tab:s3}.
+
+\subsection{Model Evaluation}
+\label{sec:evaluation}
+
+We evaluated six fixed models on the same test set of 383 ICU stays from 365 patients, without retraining them. No patient appeared in both training and test sets. We compared A and B within each algorithm to assess added glucose information. Outcomes were documented recurrences under the cohort rules.
+
+Sensitivity was the primary operating metric because the intended use was to identify patients for closer glucose monitoring after recovery. For each model, we selected the highest threshold that achieved at least 80\% sensitivity on the training nested out-of-fold (OOF) predictions. This minimized alerts while meeting the target. The 80\% target was an exploratory choice, not a clinical standard. Thresholds were fixed before the test predictions were evaluated.
+
+We reported AUROC, average precision (AP), sensitivity, specificity, precision, F1-score, and alert rate. AP used step-weighted precision rather than trapezoidal PR-AUC. Percentile 95\% confidence intervals used 2,000 patient-level bootstrap samples (seed 20261014), retaining all stays per sampled patient. Common samples were used for paired B-minus-A comparisons, with models and thresholds fixed. We also examined OOF targets of 70\% and 90\%. Subsequent error analysis grouped test stays by index glucose below 54 versus 54 to below 70 mg/dL, without changing any model or threshold.
+
+\subsection*{Ethics Statement}
+
+\todo{Ethics statement: (a) data are public under the PhysioNet credentialed data use agreement; (b) no patient-level data will be redistributed; (c) sensitivity of the data.}
+%==============================
+
+
+% Results
+%==============================
+\section{Results}
+\label{sec:results}
+
+\subsection{Cohort Characteristics}
+\label{sec:cohort}
+
+Median age was 65 years (IQR 54 to 75) and 56.7\% of stays were male (Table~\ref{tab:cohort}). Age, sex and SOFA score were similar between outcome groups. Recurrent stays had higher lactate (median 3.4 vs 1.9 mmol/L), lower mean glucose in the 24 hours before recovery (83.6 vs 99.8 mg/dL) and longer index episodes (5.8 vs 5.0 hours), and their nadir fell below 54 mg/dL more often (36.4\% vs 26.7\%). Fewer of them had been on an insulin infusion before the index event (11.3\% vs 27.1\%). Lactate, glucose trajectory and insulin exposure features showed the largest standardized mean differences (Figure~\ref{fig:smd}).\cite{austin2009standardized} When trajectories were aligned on recovery, recurrent stays already had lower glucose before the index event and stayed near 80 to 90 mg/dL afterwards, while non-recurrent stays returned to about 120 mg/dL (Figure~\ref{fig:trajectory}).
+
+Missingness differed by outcome.\cite{agniel2018biases} Lactate was missing in 20.3\% of recurrent stays and 10.6\% of non-recurrent stays. Pre-index glucose summaries were missing in 27.1\% and 17.5\%, because recurrent stays more often had hypoglycemia at their first ICU glucose measurement. The first recurrence came a median of 8.9 hours after recovery (IQR 4.0 to 14.2), and 39\% of recurrent stays had fewer than three measurements in the outcome window (Figure~\ref{fig:s3}), which follows from the different follow-up rules for the two groups (Section~\ref{sec:phenotype}).
+
+\begin{table*}[!t]
+\setlength{\abovecaptionskip}{5pt}
+\caption{Cohort characteristics by outcome. Values are median [IQR] or n (\%). P values come from Mann--Whitney U or chi-square tests and are descriptive only.}
+\label{tab:cohort}
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tabular}{lcccc}
+    \toprule
+    \textbf{Characteristic} & \textbf{Overall (n = 1,906)} & \textbf{No recurrence (n = 1,279)} & \textbf{Recurrence (n = 627)} & \textbf{P} \\
+    \midrule
+    \multicolumn{5}{l}{\textbf{\textit{Demographics and comorbidities}}} \\
+    \quad Age, years & 65 [54--75] & 64 [53--75] & 66 [54--75] & 0.211 \\
+    \quad Male sex & 1,080 (56.7) & 727 (56.8) & 353 (56.3) & 0.861 \\
+    \quad Elective admission & 218 (11.4) & 169 (13.2) & 49 (7.8) & 0.001 \\
+    \quad Diabetes & 805 (42.2) & 558 (43.6) & 247 (39.4) & 0.087 \\
+    \quad Liver disease & 574 (30.1) & 353 (27.6) & 221 (35.2) & $<$0.001 \\
+    \quad Renal disease & 709 (37.2) & 475 (37.1) & 234 (37.3) & 0.979 \\
+    \multicolumn{5}{l}{\textbf{\textit{Severity and organ support}}} \\
+    \quad SOFA score & 7 [5--11] & 7 [5--11] & 8 [5--11] & 0.212 \\
+    \quad Sepsis-3 & 897 (47.1) & 588 (46.0) & 309 (49.3) & 0.190 \\
+    \quad Invasive ventilation & 1,274 (66.8) & 901 (70.4) & 373 (59.5) & $<$0.001 \\
+    \quad Vasoactive agents & 1,087 (57.0) & 764 (59.7) & 323 (51.5) & $<$0.001 \\
+    \quad Renal replacement therapy & 371 (19.5) & 230 (18.0) & 141 (22.5) & 0.023 \\
+    \multicolumn{5}{l}{\textbf{\textit{Laboratory values}}} \\
+    \quad Lactate, mmol/L & 2.2 [1.3--5.2] & 1.9 [1.2--3.8] & 3.4 [1.6--8.3] & $<$0.001 \\
+    \quad Creatinine, mg/dL & 1.7 [1.0--3.0] & 1.7 [1.0--2.9] & 1.9 [1.1--3.1] & 0.080 \\
+    \multicolumn{5}{l}{\textbf{\textit{Glycemic treatment}}} \\
+    \quad IV insulin infusion, 24 h before index & 417 (21.9) & 346 (27.1) & 71 (11.3) & $<$0.001 \\
+    \quad SC or bolus insulin, 24 h before index & 562 (29.5) & 428 (33.5) & 134 (21.4) & $<$0.001 \\
+    \quad Enteral nutrition, 24 h & 241 (12.6) & 177 (13.8) & 64 (10.2) & 0.030 \\
+    \multicolumn{5}{l}{\textbf{\textit{Index event}}} \\
+    \quad Index glucose, mg/dL & 61 [53--66] & 62 [54--67] & 60 [52--66] & 0.013 \\
+    \multicolumn{5}{l}{\textbf{\textit{Glucose trajectory (Feature Set B only)}}} \\
+    \quad Nadir glucose, mg/dL & 60 [51--66] & 61 [52--66] & 59 [49--65] & $<$0.001 \\
+    \quad Nadir below 54 mg/dL & 570 (29.9) & 342 (26.7) & 228 (36.4) & $<$0.001 \\
+    \quad Index episode duration, h & 5.2 [2.7--8.9] & 5.0 [2.5--7.8] & 5.8 [3.0--11.8] & $<$0.001 \\
+    \quad Recovery glucose, mg/dL & 100 [83--131] & 107 [88--137] & 90 [78--111] & $<$0.001 \\
+    \quad Mean glucose, 24 h before recovery, mg/dL & 94.8 [77.7--119.8] & 99.8 [81.7--125.8] & 83.6 [72.3--105.7] & $<$0.001 \\
+    \quad Glucose slope, 24 h before index, mg/dL/h & $-$4.0 [$-$8.9 to $-$1.9] & $-$4.4 [$-$9.9 to $-$2.1] & $-$3.4 [$-$6.9 to $-$1.6] & $<$0.001 \\
+    \quad Glucose tests per ICU day before index & 3.9 [1.6--7.1] & 4.4 [2.0--8.2] & 2.8 [0.0--5.4] & $<$0.001 \\
+    \bottomrule
+\end{tabular}
+}
+\par\smallskip{\footnotesize IV, intravenous; SC, subcutaneous; SOFA, Sequential Organ Failure Assessment. The full table covering all 76 features is available in the project outputs.}
+\end{table*}
+
+\begin{figure}[!t]
+    \centering
+    \setlength{\abovecaptionskip}{2pt}
+    \includegraphics[width=\columnwidth]{img/fig1_smd.png}
+    \caption{The 20 features with the largest absolute standardized mean differences between recurrent and non-recurrent stays. Orange bars are higher and blue bars lower in recurrent stays; dotted lines mark $|\mathrm{SMD}| = 0.1$. These differences are descriptive and were not used to select features.}
+    \label{fig:smd}
+\end{figure}
+
+\begin{figure}[!t]
+    \centering
+    \setlength{\abovecaptionskip}{2pt}
+    \includegraphics[width=\columnwidth]{img/fig2_glucose_trajectory.png}
+    \caption{Glucose trajectories aligned on the recovery time (hour 0), shown as the median and interquartile range in 2-hour bins. The dashed line marks 70 mg/dL. Readings in the shaded area after recovery define the outcome and were never used as features.}
+    \label{fig:trajectory}
+\end{figure}
+
+\subsection{Model Performance}
+\label{sec:performance}
+
+The test set contained 133 stays with documented recurrence and 250 labelled non-recurrent. Table~\ref{tab:performance} summarizes performance. LR-B had the highest AUROC (0.697) and AP (0.533) estimates; XGB-B had the highest F1-score (0.571). Figure~\ref{fig:rocpr} compares discrimination across thresholds, not just the selected operating points.
+
+RF-A identified 116 of 133 recurrent stays but generated 178 false positives and flagged 76.8\% of test stays. RF-A, RF-B and XGB-B reached 80\% test sensitivity. The other models achieved 66.2\%--76.7\%, despite meeting the target in their OOF predictions.
+
+\begin{table*}[!t]
+\setlength{\abovecaptionskip}{5pt}
+\caption{Performance on 383 test ICU stays at thresholds selected using the 80\% OOF sensitivity rule.}
+\label{tab:performance}
+\centering
+\resizebox{0.75\textwidth}{!}{
+\begin{tabular}{lccccccc}
+    \toprule
+    \textbf{Model} & \textbf{AUROC} & \textbf{AP} & \textbf{Sens. (\%)} & \textbf{Spec. (\%)} & \textbf{PPV (\%)} & \textbf{F1} & \textbf{Alerts (\%)} \\
+    \midrule
+        LR-A & 0.653 & 0.518 & 76.7 & 40.0 & 40.5 & 0.530 & 65.8 \\
+        LR-B & 0.697 & 0.533 & 73.7 & 54.0 & 46.0 & 0.566 & 55.6 \\
+        RF-A & 0.638 & 0.472 & 87.2 & 28.8 & 39.5 & 0.543 & 76.8 \\
+        RF-B & 0.688 & 0.510 & 81.2 & 44.4 & 43.7 & 0.568 & 64.5 \\
+        XGB-A & 0.630 & 0.440 & 66.2 & 54.4 & 43.6 & 0.525 & 52.7 \\
+        XGB-B & 0.674 & 0.498 & 82.0 & 44.0 & 43.8 & 0.571 & 65.0 \\
+    \bottomrule
+\end{tabular}
+}
+\par\smallskip{\footnotesize Sens., sensitivity; Spec., specificity; PPV, precision. All operating metrics use model-specific frozen thresholds. Confidence intervals and thresholds are provided in Table~\ref{tab:s1}.}
+\end{table*}
+
+\begin{figure*}[!t]
+    \centering
+    \setlength{\abovecaptionskip}{2pt}
+    \includegraphics[width=0.85\textwidth]{img/fig3_roc_pr.png}
+    \caption{Test ROC curves (A) and precision-recall curves (B). Legend values are AUROC and AP, respectively. Dashed lines represent A and solid lines represent B. The dotted lines indicate chance discrimination in A and test recurrence prevalence (34.7\%) in B.}
+    \label{fig:rocpr}
+\end{figure*}
+
+\subsection{Feature Set Comparison and Robustness}
+\label{sec:comparison}
+
+Feature set B increased AUROC and AP estimates for all algorithms. The paired AUROC gains were 0.043 for LR (95\% CI 0.005--0.080), 0.050 for RF (0.007--0.092), and 0.044 for XGBoost (0.001--0.086). AP gains were 0.015, 0.038, and 0.058, respectively; all three AP intervals included zero (Figure~\ref{fig:gain}).
+
+Higher ranking performance did not always produce higher sensitivity at the frozen thresholds. Compared with RF-A, RF-B reduced false positives from 178 to 139 but missed 8 more recurrent stays. Increasing the OOF sensitivity target raised test sensitivity and alert rates across all models. For LR-B, the 70\% and 90\% targets produced test sensitivities of 59.4\% and 86.5\%, with alert rates of 43.1\% and 72.3\% (Figure~\ref{fig:s1}).
+
+In XGB-B, lactate and recovery glucose contributed most to predictions, and 8 of the 15 most influential features were glucose-trajectory features (Figure~\ref{fig:s4}). The effects were non-linear. Predicted risk rose sharply above a lactate of about 3 mmol/L and below a recovery glucose of about 100 mg/dL. A missing lactate value also increased predicted risk (Figure~\ref{fig:s5}).
+
+Removing the seven discharge-coded comorbidity variables changed test AUROC by at most 0.012 and AP by at most 0.014 for any model, and Feature Set B still had a higher AUROC than A for every algorithm (gains 0.038 to 0.041; Table~\ref{tab:s4}).
+
+\begin{figure}[!t]
+    \centering
+    \setlength{\abovecaptionskip}{2pt}
+    \includegraphics[width=\columnwidth]{img/fig4_paired_gain.png}
+    \caption{Paired differences between feature sets B and A on the test set. Points show the observed differences; bars show patient-level bootstrap 95\% confidence intervals. The dotted line marks no difference. Intervals are conditional on the fixed models and have not been adjusted for multiple comparisons.}
+    \label{fig:gain}
+\end{figure}
+%==============================
+
+
+% Discussion
+%==============================
+\section{Discussion}
+\label{sec:discussion}
+
+\todo{Key findings, clinical implications, limitations, and future directions.}
+%==============================
+
+
+% Conclusion
+%==============================
+\section{Conclusion}
+\label{sec:conclusion}
+
+Adding glucose-related features increased AUROC and AP estimates across all three algorithms, supporting their potential value in predicting documented recurrence. LR-B had the highest discrimination estimates, showing that more complex models did not necessarily perform better. RF-A detected more recurrences but generated more alerts, highlighting the trade-off between detection and monitoring burden. These findings support further development of risk assessment after recovery.
+%==============================
+
+
+% Required by the assignment
+%==============================
+\section*{Author Contributions (CRediT)}
+
+\todo{CRediT contributor roles table for each group member.}
+
+\section*{Generative AI Declaration}
+
+\todo{Accurate declaration of how generative AI tools were used in the code and the report.}
+%==============================
+
+
+% Reference
+%==============================
+\bibliographystyle{vancouver}
+{\footnotesize \bibliography{citation}}
+%==============================
+
+
+% Supplementary material
+%==============================
+\clearpage
+\onecolumn
+\appendix
+\renewcommand{\thetable}{S\arabic{table}}
+\renewcommand{\thefigure}{S\arabic{figure}}
+\setcounter{table}{0}
+\setcounter{figure}{0}
+
+\section*{Supplementary Material}
+
+\begin{table}[!ht]
+\setlength{\abovecaptionskip}{5pt}
+\caption{Frozen thresholds and test estimates with patient-level bootstrap 95\% confidence intervals.}
+\label{tab:s1}
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tabular}{lccccc}
+    \toprule
+    \textbf{Model} & \textbf{Threshold} & \textbf{AUROC [95\% CI]} & \textbf{AP [95\% CI]} & \textbf{Sensitivity [95\% CI]} & \textbf{Specificity [95\% CI]} \\
+    \midrule
+        LR-A & 0.4003 & 0.653 [0.594, 0.712] & 0.518 [0.434, 0.613] & 0.767 [0.692, 0.836] & 0.400 [0.339, 0.458] \\
+        LR-B & 0.4222 & 0.697 [0.641, 0.751] & 0.533 [0.452, 0.632] & 0.737 [0.659, 0.813] & 0.540 [0.478, 0.601] \\
+        RF-A & 0.3515 & 0.638 [0.582, 0.695] & 0.472 [0.395, 0.563] & 0.872 [0.812, 0.926] & 0.288 [0.232, 0.341] \\
+        RF-B & 0.3123 & 0.688 [0.632, 0.743] & 0.510 [0.431, 0.599] & 0.812 [0.742, 0.875] & 0.444 [0.385, 0.506] \\
+        XGB-A & 0.2167 & 0.630 [0.573, 0.687] & 0.440 [0.371, 0.533] & 0.662 [0.583, 0.742] & 0.544 [0.483, 0.606] \\
+        XGB-B & 0.1769 & 0.674 [0.620, 0.731] & 0.498 [0.419, 0.594] & 0.820 [0.754, 0.881] & 0.440 [0.379, 0.500] \\
+    \bottomrule
+\end{tabular}
+}
+\par\smallskip{\footnotesize Intervals use 2,000 patient-level resamples. Thresholds were not reselected within resamples. Full metric intervals are available in the evaluation output tables.}
+\end{table}
+
+\begin{figure}[!ht]
+    \centering
+    \setlength{\abovecaptionskip}{2pt}
+    \includegraphics[width=0.85\textwidth]{img/figS1_operating_points.png}
+    \caption{Test sensitivity (A) and alert rate (B) at thresholds chosen to meet 70\%, 80\%, and 90\% training OOF sensitivity. Dashed lines represent A and solid lines represent B. The diagonal in panel A marks equality between the OOF target and test sensitivity. All targets were frozen before test evaluation; this is an operating-point analysis, not a cohort or feature sensitivity analysis.}
+    \label{fig:s1}
+\end{figure}
+
+\begin{table}[!ht]
+\setlength{\abovecaptionskip}{5pt}
+\caption{Exploratory test error analysis by index glucose. Each cell gives false negatives / observed recurrences (sensitivity). Thresholds and models were unchanged; no formal subgroup comparison was performed.}
+\label{tab:s2}
+\centering
+\resizebox{0.9\textwidth}{!}{
+\begin{tabular}{lcc}
+    \toprule
+    \textbf{Model} & \textbf{Index $<$54 mg/dL (92 stays, 36 recurrences)} & \textbf{Index 54 to $<$70 mg/dL (291 stays, 97 recurrences)} \\
+    \midrule
+        LR-A & 6 / 36 (83.3\%) & 25 / 97 (74.2\%) \\
+        LR-B & 9 / 36 (75.0\%) & 26 / 97 (73.2\%) \\
+        RF-A & 5 / 36 (86.1\%) & 12 / 97 (87.6\%) \\
+        RF-B & 5 / 36 (86.1\%) & 20 / 97 (79.4\%) \\
+        XGB-A & 9 / 36 (75.0\%) & 36 / 97 (62.9\%) \\
+        XGB-B & 6 / 36 (83.3\%) & 18 / 97 (81.4\%) \\
+    \bottomrule
+\end{tabular}
+}
+\end{table}
+
+\begin{figure}[!ht]
+    \centering
+    \setlength{\abovecaptionskip}{2pt}
+    \includegraphics[width=0.6\textwidth]{img/figS2_missingness.png}
+    \caption{Proportion of missing values by outcome group, for every feature with any missing data. Asterisks mark features whose missingness was associated with recurrence (chi-square $p < 0.05$). The dashed line is the 50\% exclusion threshold, which no feature reached.}
+    \label{fig:s2}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \setlength{\abovecaptionskip}{2pt}
+    \includegraphics[width=0.85\textwidth]{img/figS3_timing_monitoring.png}
+    \caption{(A) Time from recovery to the first recurrent hypoglycemia in recurrent stays. (B) Number of glucose measurements in the 24-hour outcome window by outcome. By design, non-recurrent stays needed at least three measurements, whereas recurrent stays did not.}
+    \label{fig:s3}
+\end{figure}
+
+\begin{table}[!ht]
+\setlength{\abovecaptionskip}{5pt}
+\caption{XGBoost hyperparameter search space, fixed settings and the values selected for XGB-A and XGB-B. Selection used mean validation AP across five patient-grouped training folds.}
+\label{tab:s3}
+\centering
+\begin{tabular}{llcc}
+    \toprule
+    \textbf{Hyperparameter} & \textbf{Searched values} & \textbf{XGB-A} & \textbf{XGB-B} \\
+    \midrule
+    \texttt{max\_depth} & 3, 5 & 5 & 5 \\
+    \texttt{learning\_rate} & 0.03, 0.1 & 0.03 & 0.03 \\
+    \texttt{n\_estimators} & 200, 500 & 500 & 200 \\
+    \texttt{min\_child\_weight} & 1, 5 & 1 & 5 \\
+    \texttt{scale\_pos\_weight} & 1.0, 2.083 & 1.0 & 1.0 \\
+    \texttt{tree\_method} & fixed: hist & hist & hist \\
+    \texttt{subsample} & fixed: 0.8 & 0.8 & 0.8 \\
+    \texttt{colsample\_bytree} & fixed: 0.8 & 0.8 & 0.8 \\
+    \texttt{random\_state} & fixed: 42 & 42 & 42 \\
+    early stopping & not used & none & none \\
+    selection metric & mean validation AP, 5 patient-grouped folds & 0.550 & 0.618 \\
+    \bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[!ht]
+    \centering
+    \setlength{\abovecaptionskip}{2pt}
+    \includegraphics[width=0.9\textwidth]{img/figS4_shap_top15.png}
+    \caption{The 15 features with the largest mean absolute SHAP values in the final XGB-A (left) and XGB-B (right) models, computed on the training set. Orange bars mark glucose-trajectory features, available only in Feature Set B. For categorical variables, SHAP values of their one-hot columns were summed.}
+    \label{fig:s4}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \setlength{\abovecaptionskip}{2pt}
+    \includegraphics[width=0.8\textwidth]{img/figS5_shap_dependence.png}
+    \caption{SHAP dependence plots for lactate, recovery glucose, mean glucose in the 24 h before recovery, and index episode duration in the final XGB-B model. Each point is one training stay; positive values increase predicted recurrence risk (log-odds). Black lines are running medians; grey points are stays with missing values. The x-axes are clipped at the 1st and 99th percentiles.}
+    \label{fig:s5}
+\end{figure}
+
+\begin{table}[!ht]
+\setlength{\abovecaptionskip}{5pt}
+\caption{Sensitivity analysis without the seven discharge-coded comorbidity variables (Feature Set A: 49 features, B: 69). Split, folds, hyperparameter grids, threshold rule and bootstrap are unchanged. Paired AUROC gains of B over A without comorbidities: LR 0.038 (0.000--0.076), RF 0.040 ($-$0.001 to 0.081), XGBoost 0.041 (0.001--0.080).}
+\label{tab:s4}
+\centering
+\begin{tabular}{lcccc}
+    \toprule
+    & \multicolumn{2}{c}{\textbf{AUROC}} & \multicolumn{2}{c}{\textbf{AP}} \\
+    \cmidrule(lr){2-3}\cmidrule(lr){4-5}
+    \textbf{Model} & \textbf{Main} & \textbf{Without comorbidities} & \textbf{Main} & \textbf{Without comorbidities} \\
+    \midrule
+        LR-A & 0.653 & 0.658 & 0.518 & 0.523 \\
+        LR-B & 0.697 & 0.696 & 0.533 & 0.533 \\
+        RF-A & 0.638 & 0.650 & 0.472 & 0.477 \\
+        RF-B & 0.688 & 0.690 & 0.510 & 0.506 \\
+        XGB-A & 0.630 & 0.630 & 0.440 & 0.454 \\
+        XGB-B & 0.674 & 0.671 & 0.498 & 0.486 \\
+    \bottomrule
+\end{tabular}
+\end{table}
+%==============================
 
 \end{document}

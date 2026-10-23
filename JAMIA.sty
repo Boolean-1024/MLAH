@@ -1,0 +1,123 @@
+\ProvidesPackage{JAMIA}
+
+\usepackage[letterpaper, margin=2cm, top=2.54cm]{geometry}
+\usepackage{fontspec}
+\usepackage{titlesec}
+\usepackage{sectsty}
+\usepackage{xcolor}
+\usepackage{color}
+
+\usepackage{authblk}
+\usepackage{fancyhdr}
+\usepackage{setspace}
+
+\usepackage{array, caption, threeparttable}
+\usepackage{booktabs}
+\usepackage{multicol}
+\usepackage{multirow}
+\usepackage{graphicx}
+
+\usepackage{amsfonts}
+\usepackage{amssymb}
+
+\usepackage{etoolbox}
+\usepackage{cuted}
+\usepackage[super,comma,sort&compress]{natbib}
+%==============================
+
+\setlength{\columnsep}{0.5cm} % set gap between the columns
+
+
+%==============================
+% maketitle
+\makeatletter
+\renewcommand{\maketitle}{
+    \thispagestyle{empty}
+    \bgroup\setlength{\parindent}{0pt}
+    \begin{flushleft}
+        \LARGE{\fontspec{Arial Bold}\@title}
+
+        \renewcommand{\Authfont}{\large\bfseries}
+        \renewcommand{\Affilfont}{\normalsize\normalfont\fontspec{Gillius ADF No2 Cond}}
+        \setlength{\affilsep}{0.4cm}
+        \vspace{0.4cm}
+        {\fontspec{Arial}\@author}
+
+    \end{flushleft}\egroup
+}
+
+\renewcommand\AB@affilsepx{\vspace{-0.3cm},  \protect\Affilfont} % make affil as a line
+\renewcommand\AB@authnote[1]{\textsuperscript{\fontspec{Arial}#1}} % change the font style for number
+\renewcommand\AB@affilnote[1]{\textsuperscript{\fontspec{Gillius ADF No2 Cond}#1}} % change the font style for number
+\makeatother
+%==============================
+
+
+
+%==============================
+% Abstract
+\newcommand{\abstractSection}[6]{%
+    {\fontspec{Arial}
+    \begin{spacing}{1.5}
+        \noindent\textbf{ABSTRACT}
+    \end{spacing}
+    \noindent\textbf{Objective:} #1\\
+    \textbf{Materials and Methods:} #2\\
+    \textbf{Results:} #3\\
+    \textbf{Discussion:} #4\\
+    \textbf{Conclusion:} #5
+    \\\\
+    \noindent\textbf{\textsf{Key words:}} #6
+    }
+}
+%==============================
+
+
+
+%==============================
+% Header
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{
+    \ifodd\value{page}
+        \textsf{\textbf{\thepage}}
+    \else
+        \footnotesize\textsf{\textit{Journal of the American Medical Informatics Association,} 2024, Vol. xx, No. x}
+\fi}
+
+\fancyhead[R]{
+    \ifodd\value{page}
+        \footnotesize\textsf{\textit{Journal of the American Medical Informatics Association,} 2024, Vol. xx, No. x}
+    \else
+        \textsf{\textbf{\thepage}}
+\fi}
+\renewcommand{\headrulewidth}{1pt}
+%==============================
+
+
+
+%==============================
+% Caption
+\DeclareCaptionLabelSeparator{dot}{.\space} % change : to .
+\usepackage[font=small, labelfont=bf, labelsep=dot,]{caption} % labelsep=dot, dot in previous line
+\captionsetup[table]{font=sf, singlelinecheck=false} % singlelinecheck=false: Align on the left
+\captionsetup[figure]{font=sf, singlelinecheck=false}
+%==============================
+
+
+
+%==============================
+% Section, subsection, subsubsection
+\allsectionsfont{\fontspec{Arial}\fontsize{12}{13}\selectfont\MakeUppercase} % font style, size, uppercase
+\subsectionfont{\fontspec{Arial}\mdseries\fontsize{10}{12}\selectfont}
+\subsubsectionfont{\fontsize{9}{11}\selectfont}
+%==============================
+
+
+
+%==============================
+% Reference list option change
+\makeatletter
+\renewcommand\@biblabel[1]{#1.} % from [1] to 1
+\makeatother %
+%==============================
