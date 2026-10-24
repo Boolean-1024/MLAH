@@ -146,7 +146,7 @@ To describe what XGBoost relied on, we used SHAP values,\cite{lundberg2017unifie
 
 All six models LR-A, LR-B, RF-A, RF-B, XGB-A, and XGB-B used the same patient-level split, with 20\% of patients held out for testing. Nested cross-validation used five outer and three inner patient-grouped folds, with hyperparameters selected by mean validation average precision (AP). To obtain out-of-fold (OOF) predictions, we held out one validation fold in each outer iteration and only used the remaining patients’ data for inner cross-validation and parameter selection.\cite{cawley2010overfitting} After selecting the hyperparameters, we refitted the model on the outer training set and made predictions on the held-out validation fold. Therefore, the OOF prediction probability for each sample is derived from a model that did not use any data from that patient's records during training or hyperparameter selection. These OOF predictions were used for threshold selection.
 
-After obtaining all the OOF predictions, we used the full training set to re-select the hyperparameters through the fixed five-fold cross-validation, grouped by patient and using mean validation AP for selection, and then re-train each final model on the full training set. The independent test set was not used for model training or hyperparameter selection. We then used the six final models to generate recurrence probabilities for the test set. For XGBoost, early stopping was not used. Search grids and selected values for XGBoost are listed in Table~\ref{tab:s3}.
+After obtaining all the OOF predictions, we used the full training set to re-select the hyperparameters through the fixed five-fold cross-validation, and then re-train each final model on the full training set. The independent test set was not used for model training or hyperparameter selection. We then used the six final models to generate recurrence probabilities for the test set. For XGBoost, early stopping was not used. Search grids and selected values for XGBoost are listed in Table~\ref{tab:s3}.
 
 \subsection{Model Evaluation}
 \label{sec:evaluation}
@@ -155,7 +155,7 @@ We evaluated six fixed models on the same test set of 383 ICU stays from 365 pat
 
 Sensitivity was the primary operating metric because the intended use was to identify patients for closer glucose monitoring after recovery. For each model, we selected the highest threshold that achieved at least 80\% sensitivity on the training nested out-of-fold (OOF) predictions. This minimized alerts while meeting the target. The 80\% target was an exploratory choice, not a clinical standard. Thresholds were fixed before the test predictions were evaluated.
 
-We reported AUROC, average precision (AP), sensitivity, specificity, precision, F1-score, and alert rate. AP used step-weighted precision rather than trapezoidal PR-AUC. Percentile 95\% confidence intervals used 2,000 patient-level bootstrap samples (seed 20261014), retaining all stays per sampled patient. Common samples were used for paired B-minus-A comparisons, with models and thresholds fixed. We also examined OOF targets of 70\% and 90\%. Subsequent error analysis grouped test stays by index glucose below 54 versus 54 to below 70 mg/dL, without changing any model or threshold.
+We reported AUROC, average precision (AP), sensitivity, specificity, precision, F1-score, and alert rate. Percentile 95\% confidence intervals used 2,000 patient-level bootstrap samples, retaining all stays per sampled patient. Common samples were used for paired B-minus-A comparisons, with models and thresholds fixed. We also examined OOF targets of 70\% and 90\%. Subsequent error analysis grouped test stays by index glucose below 54 versus 54 to below 70 mg/dL.
 
 \subsection*{Ethics Statement}
 
@@ -225,7 +225,7 @@ Missingness differed by outcome.\cite{agniel2018biases} Lactate was missing in 2
     \centering
     \setlength{\abovecaptionskip}{2pt}
     \includegraphics[width=\columnwidth]{img/fig1_smd.png}
-    \caption{The 20 features with the largest absolute standardized mean differences between recurrent and non-recurrent stays. Orange bars are higher and blue bars lower in recurrent stays; dotted lines mark $|\mathrm{SMD}| = 0.1$. These differences are descriptive and were not used to select features.}
+    \caption{The 20 features with the largest absolute standardized mean differences between recurrent and non-recurrent stays. Orange bars are higher and blue bars lower in recurrent stays; dotted lines mark $|\mathrm{SMD}| = 0.1$.}
     \label{fig:smd}
 \end{figure}
 
@@ -233,7 +233,7 @@ Missingness differed by outcome.\cite{agniel2018biases} Lactate was missing in 2
     \centering
     \setlength{\abovecaptionskip}{2pt}
     \includegraphics[width=\columnwidth]{img/fig2_glucose_trajectory.png}
-    \caption{Glucose trajectories aligned on the recovery time (hour 0), shown as the median and interquartile range in 2-hour bins. The dashed line marks 70 mg/dL. Readings in the shaded area after recovery define the outcome and were never used as features.}
+    \caption{Glucose trajectories aligned on the recovery time (hour 0), shown as the median and interquartile range in 2-hour bins. The dashed line marks 70 mg/dL. Readings in the shaded area after recovery define the outcome.}
     \label{fig:trajectory}
 \end{figure}
 
@@ -263,7 +263,7 @@ RF-A identified 116 of 133 recurrent stays but generated 178 false positives and
     \bottomrule
 \end{tabular}
 }
-\par\smallskip{\footnotesize Sens., sensitivity; Spec., specificity; PPV, precision. All operating metrics use model-specific frozen thresholds. Confidence intervals and thresholds are provided in Table~\ref{tab:s1}.}
+\par\smallskip{\footnotesize Sens., sensitivity; Spec., specificity; PPV, precision. Each model uses its own threshold. Confidence intervals and thresholds are provided in Table~\ref{tab:s1}.}
 \end{table*}
 
 \begin{figure*}[!t]
@@ -279,7 +279,7 @@ RF-A identified 116 of 133 recurrent stays but generated 178 false positives and
 
 Feature set B increased AUROC and AP estimates for all algorithms. The paired AUROC gains were 0.043 for LR (95\% CI 0.005--0.080), 0.050 for RF (0.007--0.092), and 0.044 for XGBoost (0.001--0.086). AP gains were 0.015, 0.038, and 0.058, respectively; all three AP intervals included zero (Figure~\ref{fig:gain}).
 
-Higher ranking performance did not always produce higher sensitivity at the frozen thresholds. Compared with RF-A, RF-B reduced false positives from 178 to 139 but missed 8 more recurrent stays. Increasing the OOF sensitivity target raised test sensitivity and alert rates across all models. For LR-B, the 70\% and 90\% targets produced test sensitivities of 59.4\% and 86.5\%, with alert rates of 43.1\% and 72.3\% (Figure~\ref{fig:s1}).
+Higher ranking performance did not always produce higher sensitivity at the chosen thresholds. Compared with RF-A, RF-B reduced false positives from 178 to 139 but missed 8 more recurrent stays. Increasing the OOF sensitivity target raised test sensitivity and alert rates across all models. For LR-B, the 70\% and 90\% targets produced test sensitivities of 59.4\% and 86.5\%, with alert rates of 43.1\% and 72.3\% (Figure~\ref{fig:s1}).
 
 In XGB-B, lactate and recovery glucose contributed most to predictions, and 8 of the 15 most influential features were glucose-trajectory features (Figure~\ref{fig:s4}). The effects were non-linear. Predicted risk rose sharply above a lactate of about 3 mmol/L and below a recovery glucose of about 100 mg/dL. A missing lactate value also increased predicted risk (Figure~\ref{fig:s5}).
 
@@ -289,7 +289,7 @@ Removing the seven discharge-coded comorbidity variables changed test AUROC by a
     \centering
     \setlength{\abovecaptionskip}{2pt}
     \includegraphics[width=\columnwidth]{img/fig4_paired_gain.png}
-    \caption{Paired differences between feature sets B and A on the test set. Points show the observed differences; bars show patient-level bootstrap 95\% confidence intervals. The dotted line marks no difference. Intervals are conditional on the fixed models and have not been adjusted for multiple comparisons.}
+    \caption{Paired differences between feature sets B and A on the test set. Points show the observed differences; bars show patient-level bootstrap 95\% confidence intervals. The dotted line marks no difference.}
     \label{fig:gain}
 \end{figure}
 %==============================
@@ -300,7 +300,7 @@ Removing the seven discharge-coded comorbidity variables changed test AUROC by a
 \section{Discussion}
 \label{sec:discussion}
 
-\todo{Key findings, clinical implications, limitations, and future directions.}
+\todo{Key findings, clinical implications, limitations, and future directions. Note in limitations: the B$-$A confidence intervals are not adjusted for multiple comparisons.}
 %==============================
 
 
@@ -346,7 +346,7 @@ Adding glucose-related features increased AUROC and AP estimates across all thre
 
 \begin{table}[!ht]
 \setlength{\abovecaptionskip}{5pt}
-\caption{Frozen thresholds and test estimates with patient-level bootstrap 95\% confidence intervals.}
+\caption{Thresholds and test estimates with patient-level bootstrap 95\% confidence intervals.}
 \label{tab:s1}
 \centering
 \resizebox{\textwidth}{!}{
@@ -363,14 +363,14 @@ Adding glucose-related features increased AUROC and AP estimates across all thre
     \bottomrule
 \end{tabular}
 }
-\par\smallskip{\footnotesize Intervals use 2,000 patient-level resamples. Thresholds were not reselected within resamples. Full metric intervals are available in the evaluation output tables.}
+\par\smallskip{\footnotesize Intervals use 2,000 patient-level resamples.}
 \end{table}
 
 \begin{figure}[!ht]
     \centering
     \setlength{\abovecaptionskip}{2pt}
     \includegraphics[width=0.85\textwidth]{img/figS1_operating_points.png}
-    \caption{Test sensitivity (A) and alert rate (B) at thresholds chosen to meet 70\%, 80\%, and 90\% training OOF sensitivity. Dashed lines represent A and solid lines represent B. The diagonal in panel A marks equality between the OOF target and test sensitivity. All targets were frozen before test evaluation; this is an operating-point analysis, not a cohort or feature sensitivity analysis.}
+    \caption{Test sensitivity (A) and alert rate (B) at thresholds chosen to meet 70\%, 80\%, and 90\% training OOF sensitivity. Dashed lines represent A and solid lines represent B. The diagonal in panel A marks equality between the OOF target and test sensitivity.}
     \label{fig:s1}
 \end{figure}
 
