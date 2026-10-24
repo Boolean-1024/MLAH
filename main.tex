@@ -117,9 +117,9 @@ Feature Set A (56 features) contained the baseline clinical information, includi
 \subsection{Preprocessing}
 \label{sec:preprocessing}
 
-For logistic regression (LR) and random forest (RF), missing values of continuous variables were imputed with the training-fold median, and a flag was added to record whether each value was missing. Missing values of binary variables were filled with the most frequent training value, keeping the 0/1 encoding. In all models, categorical variables were one-hot encoded, with missing values labelled ``Missing''.
+For logistic regression (LR) and random forest (RF), missing values of continuous variables were imputed with the training-fold median, and a flag was added to record whether each value was missing. Missing values of binary variables were filled with the most frequent training value, keeping the 0/1 encoding. In all models, missing categorical values were labelled ``Missing'' before one-hot encoding.
 
-For LR, we applied an inverse hyperbolic sine (arcsinh) transformation to skewed continuous variables and standardized all continuous variables. For RF, continuous variables were not transformed or standardized. For XGBoost, continuous and binary features were used without imputation or scaling: trees split on cut-off values, and XGBoost learns which branch a missing value should follow, so the absence of a test can itself carry information, as for lactate (Section~\ref{sec:cohort}). All imputation values, standardization parameters and encoded categories were learned on the training folds and applied to the corresponding validation folds to avoid data leakage.
+For LR, we applied an inverse hyperbolic sine (arcsinh) transformation to skewed continuous variables and standardized all continuous variables. For RF, continuous variables were not transformed or standardized. For XGBoost, continuous and binary missing values were retained for its native handling, and no scaling was applied: trees split on cut-off values, and XGBoost learns which branch a missing value should follow, so the absence of a test can itself carry information, as for lactate (Section~\ref{sec:cohort}). All imputation values, standardization parameters and encoded categories were learned on the training folds and applied to the corresponding validation folds to avoid data leakage.
 
 
 \subsection{Models}
