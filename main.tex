@@ -142,9 +142,9 @@ To describe model behavior, we computed SHAP values\cite{lundberg2017unified,lun
 \subsection{Hyperparameter Tuning and Validation}
 \label{sec:tuning}
 
-All six models LR-A, LR-B, RF-A, RF-B, XGB-A, and XGB-B used the same patient-level split, with 20\% of patients held out for testing. Nested cross-validation used five outer and three inner patient-grouped folds, with hyperparameters selected by mean validation average precision (AP). To obtain out-of-fold (OOF) predictions, we held out one validation fold in each outer iteration and only used the remaining patients’ data for inner cross-validation and parameter selection.\cite{cawley2010overfitting} After selecting the hyperparameters, we refitted the model on the outer training set and made predictions on the held-out validation fold. Therefore, the OOF prediction probability for each sample is derived from a model that did not use any data from that patient's records during training or hyperparameter selection. These OOF predictions were used for threshold selection.
+All six models used the same patient-level split, with 20\% of patients held out as the test set. Within the training set, nested cross-validation used five outer and three inner patient-grouped folds, and hyperparameters were selected by mean validation average precision (AP).\cite{cawley2010overfitting} In each outer iteration, the model tuned on the inner folds was refitted on the outer training folds and predicted the held-out fold. Each out-of-fold (OOF) prediction therefore came from a model that never saw that patient during training or tuning; these predictions were used to select thresholds.
 
-After obtaining all the OOF predictions, we used the full training set to re-select the hyperparameters through the fixed five-fold cross-validation, and then re-train each final model on the full training set. The independent test set was not used for model training or hyperparameter selection. We then used the six final models to generate recurrence probabilities for the test set.
+Finally, hyperparameters were re-selected by five-fold patient-grouped cross-validation on the full training set, and each final model was refitted on all training data. The test set was not used for training, tuning or threshold selection.
 
 \subsection{Model Evaluation}
 \label{sec:evaluation}
