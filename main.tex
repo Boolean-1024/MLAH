@@ -24,11 +24,11 @@
         \todo{add student ID numbers to the title page}
 
         \abstractSection
-        {\todo{Objective}} % Objective
-        {\todo{Materials and Methods}} % Materials and Methods
-        {\todo{Results}} % Results
-        {\todo{Discussion}} % Discussion
-        {\todo{Conclusion}} % Conclusion
+        {To predict whether ICU patients who recover from hypoglycemia will become hypoglycemic again within 24 hours, and to test whether the glucose trajectory before recovery adds to baseline clinical information.} % Objective
+        {Using MIMIC-IV, we identified adult ICU stays with a hypoglycemic episode followed by recovery and made each prediction at the moment of recovery. We compared baseline clinical features with a feature set that also described the glucose trajectory before recovery. Logistic regression, random forest and XGBoost were tuned with patient-level nested cross-validation and evaluated on a held-out test set, using thresholds set to reach 80\% sensitivity on the training data.} % Materials and Methods
+        {The final cohort contained 1,906 ICU stays, about one-third of which had a recurrence. Adding the glucose trajectory improved discrimination for all three algorithms, and logistic regression with trajectory features performed best. Discrimination nevertheless remained modest, and the models flagged more than half of test stays at the chosen thresholds. Patients who recurred tended to recover only partially, and lactate was a strong predictor.} % Results
+        {How glucose recovers carries information that a single reading above the threshold does not. Part of the gain may reflect how often glucose was measured, because the two outcome groups entered the cohort under different follow-up rules.} % Discussion
+        {Glucose trajectory features may help identify ICU patients who need closer glucose monitoring after recovery from hypoglycemia. External validation is needed before clinical use.} % Conclusion
         {hypoglycemia, intensive care units, MIMIC-IV, machine learning, digital phenotyping} % Key words
 
         \par\noindent\rule[-7pt]{15.5cm}{0.2em}
@@ -83,11 +83,11 @@ Quality checks confirmed unique stay identifiers, valid event chronology, and la
 \subsection{Feature Engineering}
 \label{sec:features}
 
-All predictors used only information recorded at or before the recovery time, and each time window was anchored on either the index event or recovery (Table~\ref{tab:features}). Glucose values after recovery were used only to assign the label. Glucose features followed the same extraction and deduplication rules as the phenotype, so features and labels came from the same measurements.
+All predictors used only information recorded at or before recovery, and glucose values after recovery were used only to assign the label. Glucose features followed the same extraction rules as the phenotype.
 
-We built 76 candidate features in eight domains (Table~\ref{tab:features}), using derived concepts from the MIMIC Code Repository where available.\cite{johnson2018code} SOFA came from the last hourly score ending before recovery, and Sepsis-3\cite{singer2016sepsis3} was counted only when the SOFA rise, the antibiotic and the culture all preceded recovery. Insulin units counted only the dose given in the 24 hours before the index event, with infusions prorated. A medication or nutrition variable was set to 0 when no record existed, so a zero means nothing was documented. The seven comorbidity variables are the exception: they come from ICD codes assigned at discharge, so we treated them as a retrospective approximation and repeated the full analysis without them (Table~\ref{tab:s4}).
+We built 76 candidate features (Table~\ref{tab:features}), using derived concepts from the MIMIC Code Repository where available.\cite{johnson2018code} SOFA was the last hourly score before recovery. Sepsis-3\cite{singer2016sepsis3} was counted only when the SOFA rise, the antibiotic and the culture all preceded recovery, and insulin infusions were prorated to the 24 hours before the index event. A missing medication or nutrition record was coded as 0. The seven comorbidity variables are the exception to the timing rule: they come from ICD codes assigned at discharge, so we treated them as a retrospective approximation and repeated the full analysis without them (Table~\ref{tab:s4}).
 
-Feature Set A (56 features) contained the baseline clinical information, including the index glucose value. Feature Set B (76 features) added 20 features on the glucose trajectory before recovery: its level, variability and trend, and how often glucose was measured. We recorded the proportion of missing values for each feature, overall and by outcome, and tested its association with recurrence using chi-square tests. No feature passed the prespecified 50\% exclusion threshold (Figure~\ref{fig:s2}). Imputation, scaling and encoding were fitted on training data only (Section~\ref{sec:preprocessing}).
+Feature Set A (56 features) contained the baseline clinical information, including the index glucose value. Feature Set B added 20 features describing the glucose trajectory before recovery. Missingness was compared between outcome groups with chi-square tests, and no feature exceeded the prespecified 50\% exclusion threshold (Figure~\ref{fig:s2}).
 
 \begin{table*}[!t]
 \setlength{\abovecaptionskip}{5pt}
