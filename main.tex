@@ -21,7 +21,6 @@
     \begin{minipage}{.88\textwidth}
         \maketitle
         \small
-        
 
         \abstractSection
         {To predict recurrent hypoglycemia within 24 hours of recovery in ICU patients, and to test whether the glucose trajectory before recovery adds to baseline clinical information.} % Objective
@@ -43,9 +42,9 @@
 \section{Introduction}
 \label{sec:intro}
 
-Hypoglycemia, defined as blood glucose below 70 mg/dL, is a major concern in intensive care units (ICUs).\cite{ada2026hospital} Yeh et al.\cite{yeh2025hypoglycemia} found that 12.7\% of ICU patients experienced hypoglycemia during their stay. These patients had a much higher hospital mortality rate than those without hypoglycemia (48.9\% vs. 15.9\%). Similar finidngs also have been reported by Krinsley et al.\cite{krinsley2011mild} and Kalfon et al.\cite{kalfon2015severe}
+Hypoglycemia, defined as blood glucose below 70 mg/dL, is a major concern in intensive care units (ICUs).\cite{ada2026hospital} Yeh et al.\cite{yeh2025hypoglycemia} found that 12.7\% of ICU patients experienced hypoglycemia during their stay. These patients had a much higher hospital mortality rate than those without hypoglycemia (48.9\% vs. 15.9\%). Similar finidngs were also reported by Krinsley et al.\cite{krinsley2011mild} and Kalfon et al.\cite{kalfon2015severe}
 
-Despite initial recovery, patients may experience recurrent hypoglycemia, highlighting the need to identify those at continued risk.\cite{dnetto2016predictors}
+Even after recovery, hypoglycemia can recur, and repeated episodes are associated with a higher risk of mortality.\cite{dnetto2016predictors,kalfon2015severe}
 
 This study uses MIMIC-IV to predict recurrent hypoglycemia within 24 hours of recovery. We compare baseline clinical features (Feature Set A) with additional glucose measurements and temporal features (Feature Set B), evaluating Logistic Regression, Random Forest, and XGBoost to determine their predictive value.
 %==============================
@@ -59,26 +58,26 @@ This study uses MIMIC-IV to predict recurrent hypoglycemia within 24 hours of re
 \subsection{Data Source and Study Population}
 \label{sec:data}
 
-This retrospective study used MIMIC-IV version 3.1, containing de-identified electronic health records from Beth Israel Deaconess Medical Center.\cite{johnson2023mimiciv,johnson2024mimiciv31}
+This retrospective study used de-identified patient records from MIMIC-IV version 3.1, collected at Beth Israel Deaconess Medical Center.\cite{johnson2023mimiciv,johnson2024mimiciv31}
 
-Adults ($\geq$18 years) were identified using anchor age and year. ICU stays and demographics came from \textit{icustays} and \textit{patients}, respectively. Stays with missing or invalid timestamps were excluded.
+Adult ICU patients ($\geq$18 years) were identified using MIMIC-IV anchor age and year. ICU stay and patient information were obtained from \textit{icustays} and \textit{patients}. Stays with missing or invalid timestamps were excluded.
 
-Glucose measurements were extracted from \textit{chartevents} (220621, 226537) and \textit{labevents} (50809, 50931). Only numeric ICU measurements above 0 and at most 1,000 mg/dL were retained.
+Glucose measurements were extracted from \textit{chartevents} (220621, 226537) and \textit{labevents} (50809, 50931). Only numeric readings recorded during ICU stays, with units of mg/dL and values above 0 and up to 1,000 mg/dL, were included.
 
-Measurements were merged chronologically and deduplicated by ICU stay and timestamp, prioritising laboratory values. Remaining same-source duplicates were resolved by retaining the minimum value; distinct timestamps were preserved.
+For measurements at the same timestamp, laboratory values were prioritised. If multiple values remained within the same source, the lowest was kept. Measurements at different timestamps were retained.
 
-Each ICU stay contributed at most one prediction instance, but patients could contribute multiple stays.
+Each ICU stay contributed at most one prediction instance, although patients could have multiple stays.
 
 \subsection{Digital Phenotyping and Cohort Construction}
 \label{sec:phenotype}
 
-A rule-based digital phenotype identified hypoglycemia, recovery, and recurrence within 24 hours. The index event was the first glucose measurement below 70 mg/dL; recovery was the first subsequent measurement $\geq$70 mg/dL, marking the prediction time point.
+A rule-based digital phenotype was used to identify hypoglycemia, recovery, and recurrence. The index event was the first glucose reading below 70 mg/dL, while recovery was the first later reading at or above 70 mg/dL. Recovery was used as the prediction time.
 
-Recurrence (label = 1) was glucose below 70 mg/dL within 24 hours after recovery. Non-recurrence (label = 0) required no observed recurrence, a full 24-hour ICU stay after recovery, and at least three post-recovery glucose measurements. Stays not meeting these criteria were excluded unless recurrence was observed.
+Recurrence (label = 1) was defined as another glucose reading below 70 mg/dL within 24 hours after recovery. Non-recurrence (label = 0) required no recorded recurrence, a full 24-hour ICU stay after recovery, and at least three follow-up glucose measurements. Stays that did not meet these conditions were excluded unless recurrence was observed.
 
-Of 94,444 eligible adult ICU stays, 6,680 experienced hypoglycemia and 5,402 recovered. After excluding 1,326 stays with insufficient follow-up and 2,170 with insufficient glucose measurements, the cohort included 1,906 stays from 1,823 patients, with 627 (32.9\%) positive and 1,279 (67.1\%) negative cases.
+Among 94,444 eligible adult ICU stays, 6,680 had hypoglycemia and 5,402 subsequently recovered. After excluding 1,326 stays with insufficient follow-up and 2,170 with too few glucose measurements, the final cohort contained 1,906 stays from 1,823 patients. Of these, 627 (32.9\%) were recurrent and 1,279 (67.1\%) were non-recurrent.
 
-Checks confirmed unique stay identifiers, valid chronology, and label consistency. However, differing follow-up requirements may introduce monitoring-related selection bias.
+Data checks confirmed unique stay identifiers, correct event order, and consistent labels. However, the different follow-up requirements for positive and negative cases may introduce monitoring-related selection bias.
 
 \subsection{Feature Engineering}
 \label{sec:features}
@@ -116,6 +115,8 @@ Feature Set A (56 features) contained the baseline clinical information, includi
 
 \subsection{Preprocessing}
 \label{sec:preprocessing}
+
+For logistic regression and random forest, we imputed missing continuous values with the median from each training fold, and added missing indicators. For binary variables, the missing values are filled with the mode from each training fold. For categorical variables, the missing values are labelled as "Missing", and then performed one-hot encoding.
 
 For logistic regression, we also performed an inverse hyperbolic sine (arcsinh) transformation on selected skewed continuous variables and standardized the continuous variables. Random forest directly used the imputed continuous variables without any additional transformation or scaling. For XGBoost, we left the missing values of continuous and binary variables, and did not scale them, and used the same encoding method for categorical variables. All preprocessing was completed based on each training fold and then applied to the corresponding validation fold to avoid data leakage.
 \subsection{Models}
