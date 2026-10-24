@@ -61,24 +61,24 @@ This study uses MIMIC-IV to predict recurrent hypoglycemia within 24 hours of re
 
 This retrospective study used MIMIC-IV version 3.1, containing de-identified electronic health records from Beth Israel Deaconess Medical Center.\cite{johnson2023mimiciv,johnson2024mimiciv31}
 
-Adult patients ($\geq$18 years) were identified using anchor age and year. ICU stay information was obtained from \textit{icustays} and demographics from \textit{patients}. Stays with missing or invalid timestamps were excluded.
+Adults ($\geq$18 years) were identified using anchor age and year. ICU stays and demographics came from \textit{icustays} and \textit{patients}, respectively. Stays with missing or invalid timestamps were excluded.
 
-Glucose measurements were extracted from \textit{chartevents} (220621, 226537) and \textit{labevents} (50809, 50931). Only numeric values recorded during ICU stays, in mg/dL and within 0--1,000 mg/dL (excluding 0), were retained.
+Glucose measurements were extracted from \textit{chartevents} (220621, 226537) and \textit{labevents} (50809, 50931). Only numeric ICU measurements above 0 and at most 1,000 mg/dL were retained.
 
-Measurements were merged chronologically and deduplicated by ICU stay and timestamp, prioritising laboratory values. When duplicates remained within the preferred source, the minimum value was retained. Measurements at different timestamps were preserved.
+Measurements were merged chronologically and deduplicated by ICU stay and timestamp, prioritising laboratory values. Remaining same-source duplicates were resolved by retaining the minimum value; distinct timestamps were preserved.
 
-Each ICU stay contributed at most one prediction instance, while patients could contribute multiple stays.
+Each ICU stay contributed at most one prediction instance, but patients could contribute multiple stays.
 
 \subsection{Digital Phenotyping and Cohort Construction}
 \label{sec:phenotype}
 
-A rule-based digital phenotype was used to identify hypoglycemia, recovery, and recurrence within 24 hours. The index event was the first glucose measurement below 70 mg/dL, while recovery was the first subsequent measurement $\geq$70 mg/dL, marking the prediction time point.
+A rule-based digital phenotype identified hypoglycemia, recovery, and recurrence within 24 hours. The index event was the first glucose measurement below 70 mg/dL; recovery was the first subsequent measurement $\geq$70 mg/dL, marking the prediction time point.
 
-Recurrence (label = 1) was defined as glucose below 70 mg/dL within 24 hours after recovery. Non-recurrence (label = 0) required no observed recurrence, a full 24-hour ICU stay after recovery, and at least three post-recovery glucose measurements. Stays not meeting these criteria were excluded unless recurrence was observed.
+Recurrence (label = 1) was glucose below 70 mg/dL within 24 hours after recovery. Non-recurrence (label = 0) required no observed recurrence, a full 24-hour ICU stay after recovery, and at least three post-recovery glucose measurements. Stays not meeting these criteria were excluded unless recurrence was observed.
 
-Of 94,444 eligible adult ICU stays, 6,680 experienced hypoglycemia and 5,402 subsequently recovered. After excluding 1,326 stays with insufficient follow-up and 2,170 with insufficient glucose measurements, the final cohort included 1,906 stays from 1,823 patients, with 627 (32.9\%) positive and 1,279 (67.1\%) negative cases.
+Of 94,444 eligible adult ICU stays, 6,680 experienced hypoglycemia and 5,402 recovered. After excluding 1,326 stays with insufficient follow-up and 2,170 with insufficient glucose measurements, the cohort included 1,906 stays from 1,823 patients, with 627 (32.9\%) positive and 1,279 (67.1\%) negative cases.
 
-Quality checks confirmed unique stay identifiers, valid event chronology, and label consistency. However, differing follow-up requirements may introduce monitoring-related selection bias.
+Checks confirmed unique stay identifiers, valid chronology, and label consistency. However, differing follow-up requirements may introduce monitoring-related selection bias.
 
 \subsection{Feature Engineering}
 \label{sec:features}
@@ -149,7 +149,7 @@ After obtaining all the OOF predictions, we used the full training set to re-sel
 \subsection{Model Evaluation}
 \label{sec:evaluation}
 
-We evaluated six fixed models on the same test set of 383 ICU stays from 365 patients, without retraining them. No patient appeared in both training and test sets. We compared A and B within each algorithm to assess added glucose information. Outcomes were documented recurrences under the cohort rules.
+We evaluated six fixed models on 383 test ICU stays from 365 patients to predict documented recurrence.
 
 Sensitivity was the primary operating metric because the intended use was to identify patients for closer glucose monitoring after recovery. For each model, we selected the highest threshold that achieved at least 80\% sensitivity on the training nested out-of-fold (OOF) predictions. This minimized alerts while meeting the target. The 80\% target was an exploratory choice, not a clinical standard. Thresholds were fixed before the test predictions were evaluated.
 
@@ -279,7 +279,7 @@ Feature set B increased AUROC and AP estimates for all algorithms. The paired AU
 
 Higher ranking performance did not always produce higher sensitivity at the chosen thresholds. Compared with RF-A, RF-B reduced false positives from 178 to 139 but missed 8 more recurrent stays. Increasing the OOF sensitivity target raised test sensitivity and alert rates across all models. For LR-B, the 70\% and 90\% targets produced test sensitivities of 59.4\% and 86.5\%, with alert rates of 43.1\% and 72.3\% (Figure~\ref{fig:s1}).
 
-In XGB-B, lactate and recovery glucose contributed most to predictions, and 8 of the 15 most influential features were glucose-trajectory features (Figure~\ref{fig:s4}). The effects were non-linear. Predicted risk rose sharply above a lactate of about 3 mmol/L and below a recovery glucose of about 100 mg/dL. A missing lactate value also increased predicted risk (Figure~\ref{fig:s5}).
+In XGB-B, lactate and recovery glucose ranked highest, and 8 of the top 15 features were glucose-trajectory features (Figure~\ref{fig:s4}). Their SHAP patterns were non-linear, and missing lactate increased predicted risk (Figure~\ref{fig:s5}).
 
 Removing the seven discharge-coded comorbidity variables changed test AUROC by at most 0.012 and AP by at most 0.014 for any model, and Feature Set B still had a higher AUROC than A for every algorithm (gains 0.038 to 0.041; Table~\ref{tab:s4}).
 
@@ -313,7 +313,7 @@ Future work will focus on external validation and a time-to-event outcome. The l
 \section{Conclusion}
 \label{sec:conclusion}
 
-Adding glucose-related features increased AUROC and AP estimates across all three algorithms, supporting their potential value in predicting documented recurrence. LR-B had the highest discrimination estimates, showing that more complex models did not necessarily perform better. RF-A detected more recurrences but generated more alerts, highlighting the trade-off between detection and monitoring burden. These findings support further development of risk assessment after recovery.
+Added glucose-related features increased AUROC and AP estimates across all three algorithms, although AP gains remained uncertain. These findings support further study of glucose information for predicting documented recurrence after recovery. Clinical use requires verification of predictor availability, consistent outcome monitoring, and validation in other settings.
 %==============================
 
 
