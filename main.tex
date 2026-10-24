@@ -117,21 +117,16 @@ Feature Set A (56 features) contained the baseline clinical information, includi
 \subsection{Preprocessing}
 \label{sec:preprocessing}
 
-For logistic regression (LR) and random forest (RF), missing values of continuous variables were imputed with the training-fold median, and a flag was added to record whether each value was missing. Missing values of binary variables were filled with the most frequent training value, keeping the 0/1 encoding. In all models, missing categorical values were labelled ``Missing'' before one-hot encoding.
-
-For LR, we applied an inverse hyperbolic sine (arcsinh) transformation to skewed continuous variables and standardized all continuous variables. For RF, continuous variables were not transformed or standardized. For XGBoost, continuous and binary missing values were retained for its native handling, and no scaling was applied: trees split on cut-off values, and XGBoost learns which branch a missing value should follow, so the absence of a test can itself carry information, as for lactate (Section~\ref{sec:cohort}). All imputation values, standardization parameters and encoded categories were learned on the training folds and applied to the corresponding validation folds to avoid data leakage.
-
-
+For logistic regression, we also performed an inverse hyperbolic sine (arcsinh) transformation on selected skewed continuous variables and standardized the continuous variables. Random forest directly used the imputed continuous variables without any additional transformation or scaling. For XGBoost, we left the missing values of continuous and binary variables, and did not scale them, and used the same encoding method for categorical variables. All preprocessing was completed based on each training fold and then applied to the corresponding validation fold to avoid data leakage.
 \subsection{Models}
 \label{sec:models}
 
 \subsubsection{Logistic Regression and Random Forest}
 
-We established prediction models using LR and RF, and trained each model using both feature sets A and B, resulting in four models: LR-A, LR-B, RF-A, and RF-B.
+We trained logistic regression and random forest using feature sets A and B, resulting in four models. LR serves as an interpretable baseline model, and its coefficients describe how features relate to the model’s predictions. Because of class imbalance, we used balanced class weights and compared L1 and L2 regularization with different strengths.
 
-LR is an interpretable baseline model. The model coefficients indicate how the transformed features are associated with the log odds of recurrence, holding the other features constant. Due to the imbalance in the number of recurrent and non-recurrent samples, we set \texttt{class\_weight="balanced"} and used regularization to control the complexity of the model. We compared the two regularization methods, L1 and L2, and tested four C values, namely 0.01, 0.1, 1, and 10. 
+RF was used to capture nonlinear relationships and feature interactions.\citep{breiman2001random} We fixed the number of trees and the feature sampling settings for each split. We tuned maximum depth, minimum sample numbers per leaf, and class weights. The search spaces and selected values are given in Table~\ref{tab:s3}.
 
-RF can capture the non-linear relationships and interactions between features that LR finds difficult to handle by combining the prediction results of multiple decision trees.\cite{breiman2001random} We fixed the number of decision trees at 200, and the number of features considered for each split was set to the square root of the number of features after preprocessing. Additionally, we compared different maximum depths, the minimum number of samples per leaf node, and class weights. 
 
 \subsubsection{XGBoost}
 
@@ -350,7 +345,7 @@ We used a generative AI tool in preparing this assignment.
 
 Tool: ChatGPT
 
-Purpose: Brainstorming and planning. 
+Purpose: Brainstorming，planning and proofreading. 
 
 Declaration: We did not use generative AI to draft any text, code or other content in this submission.
 %==============================
@@ -528,6 +523,13 @@ features after preprocessing.
     \caption{SHAP dependence plots for lactate, recovery glucose, mean glucose in the 24 h before recovery, and index episode duration in the final XGB-B model. Each point is one training stay; positive values increase predicted recurrence risk (log-odds). Black lines are running medians; grey points are stays with missing values. The x-axes are clipped at the 1st and 99th percentiles.}
     \label{fig:s5}
 \end{figure}
+
+\begin{figure*}[!htbp]
+    \centering
+    \includegraphics[width=0.9\textwidth]{img/figS6_rf_B_permutation_importance.png}
+    \caption{RF-B permutation importance in one training-set validation fold (308 ICU stays). Bars show the mean decrease in average precision after five permutations of each feature; error bars show the standard deviation.}
+    \label{fig:s6_rf_importance}
+\end{figure*}
 
 \begin{table}[!ht]
 \setlength{\abovecaptionskip}{5pt}
