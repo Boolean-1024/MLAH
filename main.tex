@@ -300,7 +300,13 @@ Removing the seven discharge-coded comorbidity variables changed test AUROC by a
 \section{Discussion}
 \label{sec:discussion}
 
-\todo{Key findings, clinical implications, limitations, and future directions. Note in limitations: the B$-$A confidence intervals are not adjusted for multiple comparisons.}
+Across all three algorithms, the glucose trajectory before recovery improved prediction. This was the most consistent of our findings, with AUROC gains of 0.043 to 0.050 over baseline clinical features. Patients who recurred had often recovered only partially. A single reading above the hypoglycemia threshold is therefore weak evidence that the episode is over. Lactate was also a strong predictor. This points to illness severity as a driver of recurrence, though it is an association, not a causal finding.
+
+Accuracy still limits clinical use. To reach high sensitivity, the models flagged 52.7\% to 76.8\% of test stays. Most of these alerts would go to patients who do not recur. The models could prompt extra glucose checks, but they are not ready to drive interruptive alerts.
+
+These results come with several limitations, and the most important lies in how the cohort was built. A single low reading was enough to label a stay as recurrent. A non-recurrent label required a full day in the ICU and repeated glucose measurements. The two groups therefore entered the cohort under different rules, and 39\% of recurrent stays would not have met the measurement requirement. The models predict recurrence as it was observed under these recording rules, which is not the same as the true risk for every patient. Feature Set B also includes measures of how often glucose was checked. Its gain likely reflects monitoring behavior as well as physiology, although the strongest trajectory features were the glucose values themselves. In ICUs that check glucose more or less often, both the features and the chance of observing a recurrence would differ, so performance may not transfer.
+
+Future work will focus on external validation and a time-to-event outcome. The latter would keep stays with incomplete follow-up.
 %==============================
 
 
