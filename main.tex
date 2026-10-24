@@ -11,6 +11,7 @@
 \author{Group 20: Baiyu~Yan~(1477053), Shiwei~Dai~(1558920), Shuyuan~Zhang~(1339044), Yushu~Hou~(1575948), Zhongyang~Shao~(1312409)}
 \affil{School of Computing and Information Systems, The University of Melbourne, Australia}
 \date{}
+\raggedbottom
 
 \begin{document}
 
@@ -42,7 +43,7 @@
 \section{Introduction}
 \label{sec:intro}
 
-Hypoglycemia, defined as blood glucose below 70 mg/dL, is a major concern in intensive care units (ICUs).\cite{ada2026hospital} Yeh et al.\cite{yeh2025hypoglycemia} found that 12.7\% of ICU patients experienced hypoglycemia during their stay. These patients had a much higher hospital mortality rate than those without hypoglycemia (48.9\% vs. 15.9\%). Similar finidngs were also reported by Krinsley et al.\cite{krinsley2011mild} and Kalfon et al.\cite{kalfon2015severe}
+Hypoglycemia, defined as blood glucose below 70 mg/dL, is a major concern in intensive care units (ICUs).\cite{ada2026hospital} Yeh et al.\cite{yeh2025hypoglycemia} found that 12.7\% of ICU patients experienced hypoglycemia during their stay. These patients had a much higher hospital mortality rate than those without hypoglycemia (48.9\% vs. 15.9\%). Similar findings were also reported by Krinsley et al.\cite{krinsley2011mild} and Kalfon et al.\cite{kalfon2015severe}
 
 Even after recovery, hypoglycemia can recur, and repeated episodes are associated with a higher risk of mortality.\cite{dnetto2016predictors,kalfon2015severe}
 
@@ -62,7 +63,7 @@ This retrospective study used de-identified patient records from MIMIC-IV versio
 
 Adult ICU patients ($\geq$18 years) were identified using MIMIC-IV anchor age and year. ICU stay and patient information were obtained from \textit{icustays} and \textit{patients}. Stays with missing or invalid timestamps were excluded.
 
-Glucose measurements were extracted from \textit{chartevents} (220621, 226537) and \textit{labevents} (50809, 50931). Only numeric readings recorded during ICU stays, with units of mg/dL and values above 0 and up to 1,000 mg/dL, were included.
+Glucose measurements were extracted from \textit{chart\-events} (220621, 226537) and \textit{lab\-events} (50809, 50931). Only numeric readings recorded during ICU stays, with units of mg/dL and values above 0 and up to 1,000 mg/dL, were included.
 
 For measurements at the same timestamp, laboratory values were prioritised. If multiple values remained within the same source, the lowest was kept. Measurements at different timestamps were retained.
 
