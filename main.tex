@@ -21,7 +21,7 @@
     \begin{minipage}{.88\textwidth}
         \maketitle
         \small
-        \todo{add student ID numbers to the title page}
+        
 
         \abstractSection
         {To predict recurrent hypoglycemia within 24 hours of recovery in ICU patients, and to test whether the glucose trajectory before recovery adds to baseline clinical information.} % Objective
@@ -346,7 +346,13 @@ All members contributed to every role listed below.
 
 \section*{Generative AI Declaration}
 
-\todo{Accurate declaration of how generative AI tools were used in the code and the report.}
+We used a generative AI tool in preparing this assignment.
+
+Tool: ChatGPT
+
+Purpose: Brainstorming and planning. 
+
+Declaration: We did not use generative AI to draft any text, code or other content in this submission.
 %==============================
 
 
@@ -438,12 +444,47 @@ All members contributed to every role listed below.
 
 \begin{table}[!ht]
 \setlength{\abovecaptionskip}{5pt}
-\caption{XGBoost hyperparameter search space, fixed settings and the values selected for XGB-A and XGB-B. Selection used mean validation AP across five patient-grouped training folds.}
+\caption{Hyperparameter search spaces, fixed settings and selected values for the final LR, RF and XGBoost models. Selection used mean validation average precision (AP) across five patient-grouped folds within the training set.}
 \label{tab:s3}
 \centering
 \begin{tabular}{llcc}
     \toprule
-    \textbf{Hyperparameter} & \textbf{Searched values} & \textbf{XGB-A} & \textbf{XGB-B} \\
+    \multicolumn{4}{l}{\textbf{A. Logistic Regression}} \\
+    \midrule
+    \textbf{Hyperparameter or setting}
+    & \textbf{Searched values / fixed setting}
+    & \textbf{LR-A}
+    & \textbf{LR-B} \\
+    \midrule
+    Regularization & L1, L2 & L1 & L1 \\
+    \texttt{C} & 0.01, 0.1, 1, 10 & 0.1 & 0.1 \\
+    \texttt{class\_weight} & fixed: balanced & balanced & balanced \\
+    \texttt{solver} & fixed: liblinear & liblinear & liblinear \\
+    \texttt{max\_iter} & fixed: 5,000 & 5,000 & 5,000 \\
+    \texttt{random\_state} & fixed: 42 & 42 & 42 \\
+    Best mean validation AP & five-fold training CV & 0.494 & 0.562 \\
+    \midrule
+    \multicolumn{4}{l}{\textbf{B. Random Forest}} \\
+    \midrule
+    \textbf{Hyperparameter or setting}
+    & \textbf{Searched values / fixed setting}
+    & \textbf{RF-A}
+    & \textbf{RF-B} \\
+    \midrule
+    \texttt{max\_depth} & 6, None & 6 & None \\
+    \texttt{min\_samples\_leaf} & 5, 15 & 5 & 5 \\
+    \texttt{class\_weight} & None, balanced & balanced & balanced \\
+    \texttt{n\_estimators} & fixed: 200 & 200 & 200 \\
+    \texttt{max\_features} & fixed: sqrt & sqrt & sqrt \\
+    \texttt{random\_state} & fixed: 42 & 42 & 42 \\
+    Best mean validation AP & five-fold training CV & 0.532 & 0.602 \\
+    \midrule
+    \multicolumn{4}{l}{\textbf{C. XGBoost}} \\
+    \midrule
+    \textbf{Hyperparameter or setting}
+    & \textbf{Searched values / fixed setting}
+    & \textbf{XGB-A}
+    & \textbf{XGB-B} \\
     \midrule
     \texttt{max\_depth} & 3, 5 & 5 & 5 \\
     \texttt{learning\_rate} & 0.03, 0.1 & 0.03 & 0.03 \\
@@ -454,11 +495,22 @@ All members contributed to every role listed below.
     \texttt{subsample} & fixed: 0.8 & 0.8 & 0.8 \\
     \texttt{colsample\_bytree} & fixed: 0.8 & 0.8 & 0.8 \\
     \texttt{random\_state} & fixed: 42 & 42 & 42 \\
-    early stopping & not used & none & none \\
-    selection metric & mean validation AP, 5 patient-grouped folds & 0.550 & 0.618 \\
+    Early stopping & not used & not used & not used \\
+    Best mean validation AP & five-fold training CV & 0.550 & 0.618 \\
     \bottomrule
 \end{tabular}
-\par\smallskip{\footnotesize 2.083 is the ratio of non-recurrent to recurrent stays in the training set.}
+
+\medskip
+\parbox{\linewidth}{\footnotesize
+Selected values refer to the final models fitted on the full training set;
+hyperparameters could differ across outer folds during nested out-of-fold
+(OOF) prediction. Validation AP values are means from the final five-fold
+hyperparameter search, not pooled nested OOF or test-set estimates.
+For RF, \texttt{max\_depth=None} imposes no maximum depth,
+\texttt{class\_weight=None} assigns equal class weights, and
+\texttt{max\_features=sqrt} uses the square root of the number of
+features after preprocessing.
+}
 \end{table}
 
 \begin{figure}[!ht]
